@@ -1,26 +1,79 @@
-@import "tailwindcss";
+/* ================================
+   Tailwind Directives – MUST be on top
+   ================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* ================================
+   Custom CSS Variables & Dark Mode
+   ================================ */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --primary: #10b981;      /* voorbeeld accentkleur */
+  --secondary: #3b82f6;
+
+  --font-sans: 'Arial', Helvetica, sans-serif;
+  --font-mono: 'Courier New', monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Dark mode overrides */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --primary: #34d399;
+    --secondary: #60a5fa;
   }
 }
 
+/* ================================
+   Body / Global Defaults
+   ================================ */
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
 }
+
+/* Links */
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  margin: 0 0 0.5rem 0;
+}
+
+/* Buttons (optioneel, Tailwind kan dit overriden) */
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+/* Form inputs */
+input, select, textarea {
+  font-family: var(--font-sans);
+}
+
+/* Utility for container max width */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
