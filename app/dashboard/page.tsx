@@ -6,11 +6,6 @@ import { supabase } from "../../lib/supabase"
 import Calendar from "react-calendar"
 import "react-calendar/dist/Calendar.css"
 
-import FullCalendar from "@fullcalendar/react"
-import dayGridPlugin from "@fullcalendar/daygrid"
-import timeGridPlugin from "@fullcalendar/timegrid"
-import interactionPlugin from "@fullcalendar/interaction"
-
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -92,30 +87,13 @@ export default function Dashboard() {
       }
     })
 
-    // Remove booked hours
     const booked =
       appointments?.map((a) => a.start_time.substring(0, 5)) || []
 
     hours = hours.filter((h) => !booked.includes(h))
 
-    // Prevent booking within 2 hours (same day)
-    const now = new Date()
-    const selected = new Date(selectedDate)
-
-    if (selected.toDateString() === now.toDateString()) {
-      hours = hours.filter((hour) => {
-        const hourNumber = parseInt(hour.split(":")[0])
-        return hourNumber > now.getHours() + 1
-      })
-    }
-
     setAvailableHours(hours)
     setLoading(false)
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    window.location.href = "/"
   }
 
   async function bookHour(hour: string) {
@@ -125,7 +103,7 @@ export default function Dashboard() {
       String(Number(hour.split(":")[0]) + 1).padStart(2, "0") +
       ":00:00"
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("appointments")
       .insert([
         {
@@ -136,6 +114,8 @@ export default function Dashboard() {
           end_time: nextHour,
         },
       ])
+      .select()
+      .single()
 
     if (error) {
       if (error.code === "23505") {
@@ -146,189 +126,67 @@ export default function Dashboard() {
       return
     }
 
+    // 🔥 MAIL TRIGGER
+    await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL}/api/send-booking-email`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coachEmail: "johangerets@hotmail.com", // tijdelijk hardcoded
+          clientEmail: profile.email,
+          appointmentDate: selectedDate,
+          startTime: hour,
+          manageUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/manage/${data.manage_token}`,
+        }),
+      }
+    )
+
     alert("Boeking bevestigd ✅")
     await loadAvailability()
   }
 
   if (!profile) return null
 
-  if (profile.role === "coach") {
-    return <CoachDashboard profile={profile} />
-  }
-
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h1>Dashboard</h1>
-          <button onClick={handleLogout} style={styles.logout}>
-            Logout
+    <div style={{ padding: 40 }}>
+      <h1>Boek een afspraak</h1>
+
+      <select
+        value={selectedCoach}
+        onChange={(e) => setSelectedCoach(e.target.value)}
+      >
+        <option value="">Selecteer coach</option>
+        {coaches.map((coach) => (
+          <option key={coach.id} value={coach.id}>
+            {coach.name || coach.email}
+          </option>
+        ))}
+      </select>
+
+      <Calendar
+        minDate={new Date()}
+        onChange={(date: any) => {
+          const d = new Date(date)
+          const year = d.getFullYear()
+          const month = String(d.getMonth() + 1).padStart(2, "0")
+          const day = String(d.getDate()).padStart(2, "0")
+          setSelectedDate(`${year}-${month}-${day}`)
+        }}
+      />
+
+      <h3>Beschikbare uren</h3>
+
+      {loading && <p>Loading...</p>}
+
+      <div>
+        {availableHours.map((hour) => (
+          <button key={hour} onClick={() => bookHour(hour)}>
+            {hour}
           </button>
-        </div>
-
-        <p>
-          Ingelogd als: <strong>{profile.email}</strong>
-        </p>
-
-        <h2>Boek een afspraak</h2>
-
-        <select
-          value={selectedCoach}
-          onChange={(e) => setSelectedCoach(e.target.value)}
-          style={styles.input}
-        >
-          <option value="">Selecteer coach</option>
-          {coaches.map((coach) => (
-            <option key={coach.id} value={coach.id}>
-              {coach.name || coach.email}
-            </option>
-          ))}
-        </select>
-
-        <Calendar
-          minDate={new Date()}
-          onChange={(date: any) => {
-            const d = new Date(date)
-            const year = d.getFullYear()
-            const month = String(d.getMonth() + 1).padStart(2, "0")
-            const day = String(d.getDate()).padStart(2, "0")
-            const formatted = `${year}-${month}-${day}`
-            setSelectedDate(formatted)
-          }}
-        />
-
-        <h3>Beschikbare uren</h3>
-
-        {loading && <p>Loading...</p>}
-
-        <div style={styles.grid}>
-          {availableHours.map((hour) => (
-            <button
-              key={hour}
-              onClick={() => bookHour(hour)}
-              style={styles.hourButton}
-            >
-              {hour}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   )
-}
-
-// ---------------- COACH DASHBOARD ----------------
-
-function CoachDashboard({ profile }: any) {
-  const [appointments, setAppointments] = useState<any[]>([])
-
-  useEffect(() => {
-    loadAppointments()
-  }, [profile.id])
-
-  async function loadAppointments() {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, "0")
-    const day = String(today.getDate()).padStart(2, "0")
-    const formattedToday = `${year}-${month}-${day}`
-
-    const { data } = await supabase
-      .from("appointments")
-      .select(`
-        id,
-        appointment_date,
-        start_time,
-        end_time,
-        profiles:client_id ( email )
-      `)
-      .eq("coach_id", profile.id)
-      .gte("appointment_date", formattedToday)
-
-    setAppointments(data || [])
-  }
-
-  return (
-    <div style={{ width: "100%", padding: 20 }}>
-      <FullCalendar
-        plugins={[
-          dayGridPlugin,
-          timeGridPlugin,
-          interactionPlugin,
-        ]}
-        initialView="timeGridWeek"
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,timeGridWeek,timeGridDay",
-        }}
-        locale="nl"
-        firstDay={1}
-        timeZone="Europe/Brussels"
-        slotMinTime="06:00:00"
-        slotMaxTime="22:00:00"
-        height="85vh"
-        expandRows={true}
-        events={appointments.map((a) => ({
-          title: a.profiles?.email,
-          start: `${a.appointment_date}T${a.start_time}`,
-          end: `${a.appointment_date}T${a.end_time}`,
-        }))}
-      />
-    </div>
-  )
-}
-
-// ---------------- STYLES ----------------
-
-const styles: any = {
-  container: {
-    minHeight: "100vh",
-    background: "#f4f6f9",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  card: {
-    background: "white",
-    padding: 40,
-    borderRadius: 16,
-    width: 500,
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  logout: {
-    background: "#111",
-    color: "white",
-    border: "none",
-    padding: "8px 16px",
-    borderRadius: 8,
-    cursor: "pointer",
-  },
-  input: {
-    width: "100%",
-    padding: 12,
-    marginTop: 15,
-    borderRadius: 8,
-    border: "1px solid #ddd",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 10,
-    marginTop: 15,
-  },
-  hourButton: {
-    padding: 10,
-    borderRadius: 8,
-    border: "none",
-    background: "#111",
-    color: "white",
-    cursor: "pointer",
-  },
 }
 
