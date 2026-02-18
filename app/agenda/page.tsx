@@ -44,7 +44,7 @@ const [events, setEvents] = useState<any[]>([])
         .eq('coach_id', selectedCoach)
       const mappedEvents = (reservations || []).map(r => ({
         id: r.id,
-        title: r.training.name,
+title: r.training?.[0]?.name || "Training",
         start: r.reserved_at
       }))
       setEvents(mappedEvents)
