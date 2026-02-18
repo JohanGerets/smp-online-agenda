@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import FullCalendar from '@fullcalendar/react'
-import { EventInput } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -20,7 +19,7 @@ export default function AgendaPage() {
   const [coaches, setCoaches] = useState<Coach[]>([])
   const [selectedCoach, setSelectedCoach] = useState<string>('')
   const [trainings, setTrainings] = useState<TrainingOption[]>([])
-  const [events, setEvents] = useState<EventInput[]>([])
+const [events, setEvents] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
