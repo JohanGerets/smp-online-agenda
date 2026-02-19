@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
-
 import Calendar from "react-calendar"
 import "react-calendar/dist/Calendar.css"
 
@@ -82,8 +81,7 @@ export default function Dashboard() {
       const end = parseInt(slot.end_time.substring(0, 2))
 
       for (let h = start; h < end; h++) {
-        const formatted = String(h).padStart(2, "0") + ":00"
-        hours.push(formatted)
+        hours.push(String(h).padStart(2, "0") + ":00")
       }
     })
 
@@ -96,6 +94,7 @@ export default function Dashboard() {
     setLoading(false)
   }
 
+  // ---------------- BOOK ----------------
   async function bookHour(hour: string) {
     if (!user) return
 
@@ -118,29 +117,22 @@ export default function Dashboard() {
       .single()
 
     if (error) {
-      if (error.code === "23505") {
-        alert("Dit uur is net geboekt.")
-      } else {
-        alert("Boeking mislukt.")
-      }
+      alert("Boeking mislukt of uur net geboekt.")
       return
     }
 
-    // 🔥 MAIL TRIGGER
-    await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/send-booking-email`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          coachEmail: "johangerets@hotmail.com", // tijdelijk hardcoded
-          clientEmail: profile.email,
-          appointmentDate: selectedDate,
-          startTime: hour,
-          manageUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/manage/${data.manage_token}`,
-        }),
-      }
-    )
+    // 🔥 Mail trigger
+    await fetch("/api/send-booking-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coachId: selectedCoach,
+        clientId: user.id,
+        appointmentDate: selectedDate,
+        startTime: hour,
+        manageToken: data.manage_token,
+      }),
+    })
 
     alert("Boeking bevestigd ✅")
     await loadAvailability()
@@ -149,44 +141,98 @@ export default function Dashboard() {
   if (!profile) return null
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Boek een afspraak</h1>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>Boek een afspraak</h1>
 
-      <select
-        value={selectedCoach}
-        onChange={(e) => setSelectedCoach(e.target.value)}
-      >
-        <option value="">Selecteer coach</option>
-        {coaches.map((coach) => (
-          <option key={coach.id} value={coach.id}>
-            {coach.name || coach.email}
-          </option>
-        ))}
-      </select>
+        <select
+          value={selectedCoach}
+          onChange={(e) => setSelectedCoach(e.target.value)}
+          style={styles.select}
+        >
+          <option value="">Selecteer coach</option>
+          {coaches.map((coach) => (
+            <option key={coach.id} value={coach.id}>
+              {coach.name || coach.email}
+            </option>
+          ))}
+        </select>
 
-      <Calendar
-        minDate={new Date()}
-        onChange={(date: any) => {
-          const d = new Date(date)
-          const year = d.getFullYear()
-          const month = String(d.getMonth() + 1).padStart(2, "0")
-          const day = String(d.getDate()).padStart(2, "0")
-          setSelectedDate(`${year}-${month}-${day}`)
-        }}
-      />
+        {selectedCoach && (
+          <>
+            <Calendar
+              minDate={new Date()}
+              calendarType="iso8601"
+              onChange={(date: any) => {
+                const d = new Date(date)
+                const year = d.getFullYear()
+                const month = String(d.getMonth() + 1).padStart(2, "0")
+                const day = String(d.getDate()).padStart(2, "0")
+                setSelectedDate(`${year}-${month}-${day}`)
+              }}
+            />
 
-      <h3>Beschikbare uren</h3>
+            <h3 style={{ marginTop: 30 }}>Beschikbare uren</h3>
 
-      {loading && <p>Loading...</p>}
+            {loading && <p>Loading...</p>}
 
-      <div>
-        {availableHours.map((hour) => (
-          <button key={hour} onClick={() => bookHour(hour)}>
-            {hour}
-          </button>
-        ))}
+            <div style={styles.grid}>
+              {availableHours.map((hour) => (
+                <button
+                  key={hour}
+                  onClick={() => bookHour(hour)}
+                  style={styles.hourButton}
+                >
+                  {hour}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
+}
+
+const styles: any = {
+  container: {
+    minHeight: "100vh",
+    background: "#f4f6f9",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+  },
+  card: {
+    background: "white",
+    padding: 40,
+    borderRadius: 16,
+    width: 500,
+    boxShadow: "0 15px 40px rgba(0,0,0,0.1)",
+  },
+  title: {
+    marginBottom: 20,
+  },
+  select: {
+    width: "100%",
+    padding: 12,
+    marginBottom: 20,
+    borderRadius: 8,
+    border: "1px solid #ddd",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 12,
+    marginTop: 10,
+  },
+  hourButton: {
+    padding: 12,
+    borderRadius: 8,
+    border: "none",
+    background: "#111",
+    color: "white",
+    cursor: "pointer",
+  },
 }
 
