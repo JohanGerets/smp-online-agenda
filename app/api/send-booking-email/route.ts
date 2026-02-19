@@ -33,8 +33,9 @@ export async function POST(req: Request) {
       .eq("id", clientId)
       .single()
 
-    const coach = coachResponse.data
     const client = clientResponse.data
+const coach = coachResponse.data as { email: string; name?: string }
+const client = clientResponse.data as { email: string }
 
     if (!coach || !coach.email || !client || !client.email) {
       return NextResponse.json(
