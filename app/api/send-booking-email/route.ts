@@ -13,46 +13,40 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
 
-    const {
-      coachId,
-      clientId,
-      appointmentDate,
-      startTime,
-      manageToken,
-    } = body
+    const { coachId, clientId, appointmentDate, startTime, manageToken } = body
 
-    const coachResponse = await supabase
+    const coachResult = await supabase
       .from("profiles")
       .select("email, name")
       .eq("id", coachId)
       .single()
 
-    const clientResponse = await supabase
+    const clientResult = await supabase
       .from("profiles")
       .select("email")
       .eq("id", clientId)
       .single()
 
-    const client = clientResponse.data
-const coach = coachResponse.data as { email: string; name?: string }
-const client = clientResponse.data as { email: string }
-
-    if (!coach || !coach.email || !client || !client.email) {
+    if (!coachResult.data || !clientResult.data) {
       return NextResponse.json(
         { error: "Coach or client not found" },
         { status: 400 }
       )
     }
 
+    const coachEmail = coachResult.data.email
+    const coachName = coachResult.data.name ?? "Coach"
+    const clientEmail = clientResult.data.email
+
     const manageUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/manage/${manageToken}`
 
     await resend.emails.send({
       from: "SMP-Training <onboarding@resend.dev>",
-      to: coach.email,
+      to: coachEmail,
       subject: "Nieuwe boeking",
       html: `
         <h2>Nieuwe afspraak</h2>
-        <p><strong>Klant:</strong> ${client.email}</p>
+        <p><strong>Klant:</strong> ${clientEmail}</p>
         <p><strong>Datum:</strong> ${appointmentDate}</p>
         <p><strong>Tijd:</strong> ${startTime}</p>
       `,
@@ -60,11 +54,11 @@ const client = clientResponse.data as { email: string }
 
     await resend.emails.send({
       from: "SMP-Training <onboarding@resend.dev>",
-      to: client.email,
+      to: clientEmail,
       subject: "Boeking bevestigd",
       html: `
         <h2>Je afspraak is bevestigd</h2>
-        <p><strong>Coach:</strong> ${coach.name ?? "Coach"}</p>
+        <p><strong>Coach:</strong> ${coachName}</p>
         <p><strong>Datum:</strong> ${appointmentDate}</p>
         <p><strong>Tijd:</strong> ${startTime}</p>
         <br/>
