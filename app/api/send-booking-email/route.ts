@@ -21,19 +21,22 @@ export async function POST(req: Request) {
       manageToken,
     } = body
 
-    const { data: coach } = await supabase
+    const coachResponse = await supabase
       .from("profiles")
       .select("email, name")
       .eq("id", coachId)
       .single()
 
-    const { data: client } = await supabase
+    const clientResponse = await supabase
       .from("profiles")
       .select("email")
       .eq("id", clientId)
       .single()
 
-    if (!coach?.email || !client?.email) {
+    const coach = coachResponse.data
+    const client = clientResponse.data
+
+    if (!coach || !coach.email || !client || !client.email) {
       return NextResponse.json(
         { error: "Coach or client not found" },
         { status: 400 }
