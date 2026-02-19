@@ -21,26 +21,30 @@ export async function POST(req: Request) {
       manageToken,
     } = body
 
-    // Get coach
     const { data: coach } = await supabase
       .from("profiles")
       .select("email, name")
       .eq("id", coachId)
       .single()
 
-    // Get client
     const { data: client } = await supabase
       .from("profiles")
       .select("email")
       .eq("id", clientId)
       .single()
 
+    if (!coach || !client) {
+      return NextResponse.json(
+        { error: "Coach or client not found" },
+        { status: 400 }
+      )
+    }
+
     const manageUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/manage/${manageToken}`
 
-    // 📩 Mail to coach
     await resend.emails.send({
       from: "SMP-Training <onboarding@resend.dev>",
-      to: coach.email,
+      to: coach.email!,
       subject: "Nieuwe boeking",
       html: `
         <h2>Nieuwe afspraak</h2>
@@ -50,10 +54,9 @@ export async function POST(req: Request) {
       `,
     })
 
-    // 📩 Mail to client
     await resend.emails.send({
       from: "SMP-Training <onboarding@resend.dev>",
-      to: client.email,
+      to: client.email!,
       subject: "Boeking bevestigd",
       html: `
         <h2>Je afspraak is bevestigd</h2>
@@ -68,7 +71,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
+    console.error("MAIL ERROR:", error)
     return NextResponse.json({ error: "Mail failed" }, { status: 500 })
   }
 }
