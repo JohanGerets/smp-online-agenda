@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { Resend } from "resend"
 import { createClient } from "@supabase/supabase-js"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       .eq("id", clientId)
       .single()
 
-    if (!coach || !client) {
+    if (!coach?.email || !client?.email) {
       return NextResponse.json(
         { error: "Coach or client not found" },
         { status: 400 }
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     await resend.emails.send({
       from: "SMP-Training <onboarding@resend.dev>",
-      to: coach.email!,
+      to: coach.email,
       subject: "Nieuwe boeking",
       html: `
         <h2>Nieuwe afspraak</h2>
@@ -56,11 +56,11 @@ export async function POST(req: Request) {
 
     await resend.emails.send({
       from: "SMP-Training <onboarding@resend.dev>",
-      to: client.email!,
+      to: client.email,
       subject: "Boeking bevestigd",
       html: `
         <h2>Je afspraak is bevestigd</h2>
-        <p><strong>Coach:</strong> ${coach.name}</p>
+        <p><strong>Coach:</strong> ${coach.name ?? "Coach"}</p>
         <p><strong>Datum:</strong> ${appointmentDate}</p>
         <p><strong>Tijd:</strong> ${startTime}</p>
         <br/>
